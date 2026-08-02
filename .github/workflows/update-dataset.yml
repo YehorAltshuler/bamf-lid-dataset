@@ -1,0 +1,236 @@
+name: Update BAMF dataset
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "17 5 * * 1"
+      timezone: "Europe/Berlin"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update-bamf-dataset
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Install Chromium
+        run: |
+          playwright install --with-deps chromium
+
+      - name: Run tests
+        run: |
+          pytest
+
+      - name: Rebuild dataset
+        timeout-minutes: 15
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          rm -rf data/source data/staging
+          bamf-lid all
+
+      - name: Validate dataset
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("data/published")
+          questions_path = root / "questions.json"
+          manifest_path = root / "manifest.json"
+          images_dir = root / "images"
+
+          assert questions_path.is_file(), "questions.json missing"
+          assert manifest_path.is_file(), "manifest.json missing"
+          assert images_dir.is_dir(), "images directory missing"
+
+          data = json.loads(
+              questions_path.read_text(encoding="utf-8")
+          )
+          questions = data["questions"]
+
+          assert len(questions) == 460, (
+              f"expected 460 questions, got {len(questions)}"
+          )
+
+          question_ids = {
+              question["id"]
+              for question in questions
+          }
+          assert len(question_ids) == 460, (
+              "duplicate question IDs found"
+          )
+
+          general = [
+              question
+              for question in questions
+              if question["id"].startswith("general-")
+          ]
+
+          state = [
+              question
+              for question in questions
+              if not question["id"].startswith("general-")
+          ]
+
+          assert len(general) == 300, (
+              f"expected 300 general questions, got {len(general)}"
+          )
+
+          assert len(state) == 160, (
+              f"expected 160 state questions, got {len(state)}"
+          )
+
+          for question in questions:
+              assert set(question["answers"]) == {
+                  "a",
+                  "b",
+                  "c",
+                  "d",
+              }, (
+                  f'{question["id"]}: invalid answer keys'
+              )
+
+              assert question["solution"] in {
+                  "a",
+                  "b",
+                  "c",
+                  "d",
+              }, (
+                  f'{question["id"]}: invalid solution '
+                  f'{question["solution"]!r}'
+              )
+
+          referenced_images = {
+              image["path"]
+              for question in questions
+              for image in question.get("images", [])
+          }
+
+          existing_images = {
+              str(path.relative_to(root))
+              for path in images_dir.iterdir()
+              if path.is_file()
+          }
+
+          missing_images = (
+              referenced_images - existing_images
+          )
+          extra_images = (
+              existing_images - referenced_images
+          )
+
+          assert not missing_images, {
+              "missing": sorted(missing_images),
+          }
+
+          assert not extra_images, {
+              "extra": sorted(extra_images),
+          }
+
+          print("Questions:", len(questions))
+          print("General questions:", len(general))
+          print("State questions:", len(state))
+          print("Images:", len(existing_images))
+          print("Dataset validation passed")
+          PY
+
+      - name: Update manifest check date
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path("data/published/manifest.json")
+
+          manifest = json.loads(
+              path.read_text(encoding="utf-8")
+          )
+
+          manifest["lastCheckedAt"] = (
+              datetime.now(timezone.utc)
+              .replace(microsecond=0)
+              .isoformat()
+              .replace("+00:00", "Z")
+          )
+
+          path.write_text(
+              json.dumps(
+                  manifest,
+                  ensure_ascii=False,
+                  indent=2,
+              ) + "\n",
+              encoding="utf-8",
+          )
+
+          print(
+              "lastCheckedAt:",
+              manifest["lastCheckedAt"],
+          )
+          PY
+
+      - name: Commit updated dataset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/published
+
+          if git diff --cached --quiet; then
+            echo "No dataset changes to commit"
+          else
+            git commit -m "Weekly BAMF dataset check"
+            git push
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload published dataset
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: data/published
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Upload scraper diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bamf-scraper-diagnostics
+          path: data/staging/diagnostics
+          if-no-files-found: ignore
+          retention-days: 7
