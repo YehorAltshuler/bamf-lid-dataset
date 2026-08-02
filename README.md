@@ -1,50 +1,253 @@
-# BAMF Leben in Deutschland dataset builder
+# BAMF Leben in Deutschland Dataset
 
-Builds a validated dataset from **only two official sources**:
+[![Update dataset](https://github.com/YehorAltshuler/bamf-lid-dataset/actions/workflows/update-dataset.yml/badge.svg)](https://github.com/YehorAltshuler/bamf-lid-dataset/actions/workflows/update-dataset.yml)
+[![Deploy GitHub Pages](https://github.com/YehorAltshuler/bamf-lid-dataset/actions/workflows/pages.yml/badge.svg)](https://github.com/YehorAltshuler/bamf-lid-dataset/actions/workflows/pages.yml)
 
-1. BAMF `Gesamtfragenkatalog` PDF — question text, four choices and separate images.
-2. BAMF Online-Testcenter — current correct answer plus the four HTML answer texts.
+A machine-readable, validated dataset for the German **Leben in Deutschland** question catalogue.
 
-No OCR, AI, foreignvasi or third-party answer keys are used.
+The project builds the dataset exclusively from two official BAMF sources:
 
-## v4 safety checks
+- the official `Gesamtfragenkatalog` PDF for question text, answer choices and graphics;
+- the BAMF Online-Testcenter for the correct answer and BAMF internal answer ID.
 
-Before publication, v4 verifies all of the following:
+No OCR, AI-generated content or third-party answer keys are used.
 
-- exactly 460 questions: 300 general and 10 for each of 16 states;
-- stable IDs and official numbering;
-- exactly four non-empty answers per question;
-- exactly 460 Online-Testcenter solutions;
-- PDF answer texts match Online-Testcenter answer texts **in the same order**;
-- every solution is one of `a`, `b`, `c`, `d`;
-- every referenced image exists and its SHA-256 matches;
-- no duplicate image references, missing image files or unreferenced extra image files;
-- publication is atomic: an invalid new build cannot overwrite the previous valid dataset.
+## Published dataset
 
-A human-readable `review.html` is generated alongside the JSON.
+The current dataset is available through GitHub Pages:
 
-## Requirements
+| Resource | URL |
+|---|---|
+| Manifest | <https://yehoraltshuler.github.io/bamf-lid-dataset/manifest.json> |
+| Questions | <https://yehoraltshuler.github.io/bamf-lid-dataset/questions.json> |
+| Human-readable review | <https://yehoraltshuler.github.io/bamf-lid-dataset/review.html> |
+| Images | `https://yehoraltshuler.github.io/bamf-lid-dataset/images/<filename>` |
 
-- Python 3.11+
-- Chromium installed through Playwright
+The published dataset contains:
 
-## Installation
+- **460 questions** in total;
+- **300 general questions**;
+- **160 state-specific questions** — 10 for each of the 16 federal states;
+- stable IDs for every question;
+- four answer choices and one validated solution per question;
+- extracted graphics with dimensions, MIME type and SHA-256 hash.
+
+## Quick start
+
+### JavaScript
+
+```js
+const baseUrl =
+  "https://yehoraltshuler.github.io/bamf-lid-dataset";
+
+const manifest = await fetch(`${baseUrl}/manifest.json`)
+  .then((response) => {
+    if (!response.ok) {
+      throw new Error(`Manifest request failed: ${response.status}`);
+    }
+
+    return response.json();
+  });
+
+const dataset = await fetch(
+  `${baseUrl}/${manifest.questions.url}`,
+).then((response) => {
+  if (!response.ok) {
+    throw new Error(`Dataset request failed: ${response.status}`);
+  }
+
+  return response.json();
+});
+
+console.log(dataset.questions.length); // 460
+```
+
+### Python
+
+```python
+import requests
+
+base_url = (
+    "https://yehoraltshuler.github.io/"
+    "bamf-lid-dataset"
+)
+
+manifest = requests.get(
+    f"{base_url}/manifest.json",
+    timeout=30,
+).json()
+
+dataset = requests.get(
+    f"{base_url}/{manifest['questions']['url']}",
+    timeout=30,
+).json()
+
+print(len(dataset["questions"]))  # 460
+```
+
+## Dataset schema
+
+Top-level structure of `questions.json`:
+
+```json
+{
+  "schemaVersion": 1,
+  "datasetVersion": "2026-08-02.123456",
+  "generatedAt": "2026-08-02T12:34:56Z",
+  "source": {
+    "pdfUrl": "https://...",
+    "pdfSha256": "...",
+    "onlineTestcenterUrl": "https://..."
+  },
+  "questions": []
+}
+```
+
+Question object:
+
+```json
+{
+  "id": "general-001",
+  "officialNumber": 1,
+  "scope": "general",
+  "stateCode": null,
+  "question": "Question text",
+  "answers": {
+    "a": "First answer",
+    "b": "Second answer",
+    "c": "Third answer",
+    "d": "Fourth answer"
+  },
+  "images": [],
+  "sourcePage": 5,
+  "solution": "b",
+  "bamfInternalId": "12345"
+}
+```
+
+Image reference:
+
+```json
+{
+  "path": "images/general-021-1.png",
+  "sha256": "...",
+  "width": 640,
+  "height": 360,
+  "mimeType": "image/png"
+}
+```
+
+Image URLs are relative to the published dataset root:
+
+```text
+https://yehoraltshuler.github.io/bamf-lid-dataset/
+  + images/general-021-1.png
+```
+
+## Stable question IDs
+
+General questions use the official catalogue number:
+
+```text
+general-001
+general-002
+...
+general-300
+```
+
+State-specific questions use the two-letter state code and a local number:
+
+```text
+BW-01
+BY-01
+BE-01
+...
+TH-10
+```
+
+Supported state codes:
+
+| Code | State |
+|---|---|
+| `BW` | Baden-Württemberg |
+| `BY` | Bayern |
+| `BE` | Berlin |
+| `BB` | Brandenburg |
+| `HB` | Bremen |
+| `HH` | Hamburg |
+| `HE` | Hessen |
+| `MV` | Mecklenburg-Vorpommern |
+| `NI` | Niedersachsen |
+| `NW` | Nordrhein-Westfalen |
+| `RP` | Rheinland-Pfalz |
+| `SL` | Saarland |
+| `SN` | Sachsen |
+| `ST` | Sachsen-Anhalt |
+| `SH` | Schleswig-Holstein |
+| `TH` | Thüringen |
+
+## Manifest
+
+`manifest.json` is intended as the entry point for clients. It contains:
+
+- schema and dataset versions;
+- generation and last-check timestamps;
+- the `questions.json` URL, SHA-256 and question count;
+- the image base URL and image count;
+- official source URLs and the source PDF hash.
+
+A client can fetch the manifest first and download the full dataset only when its version or hash changes.
+
+## Validation guarantees
+
+Publication succeeds only when all required checks pass:
+
+- exactly 460 unique questions;
+- exactly 300 general questions;
+- exactly 10 questions for each of 16 states;
+- exactly four answer choices per question;
+- one solution from `a`, `b`, `c` or `d`;
+- a matching Online-Testcenter solution for every PDF question;
+- every referenced image exists;
+- every image hash and metadata entry is valid;
+- no missing or unreferenced published image files.
+
+An invalid build fails before deployment, so the previously published dataset remains available.
+
+## Local development
+
+### Requirements
+
+- Python 3.11 or newer;
+- Chromium installed through Playwright.
+
+### Installation
 
 ```bash
+git clone https://github.com/YehorAltshuler/bamf-lid-dataset.git
+cd bamf-lid-dataset
+
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e '.[dev]'
+
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
 playwright install chromium
 ```
 
-## Run
+### Run tests
 
 ```bash
 pytest
+```
+
+### Build the complete dataset
+
+```bash
 bamf-lid all
 ```
 
-Or step by step:
+Build stages can also be run separately:
 
 ```bash
 bamf-lid download-pdf
@@ -53,7 +256,7 @@ bamf-lid scrape-solutions
 bamf-lid build
 ```
 
-Results:
+Generated files:
 
 ```text
 data/published/
@@ -63,28 +266,45 @@ data/published/
 └── images/
 ```
 
-Open the review report on macOS:
+Open the review page on macOS:
 
 ```bash
 open data/published/review.html
 ```
 
-## Important compatibility note
+## Automatic updates
 
-v4 `solutions.json` includes the four answer texts from the Online-Testcenter. A `solutions.json` generated by v3 is intentionally rejected. Run `bamf-lid scrape-solutions` again (or simply `bamf-lid all`) before building v4.
+GitHub Actions rebuilds and validates the dataset weekly.
 
-## GitHub Pages
+A successful update:
 
-Publish the contents of `data/published/`. Flutter can check `manifest.json`, download `questions.json`, verify its SHA-256, and then fetch images under `images/`.
+1. downloads the current official BAMF PDF;
+2. parses questions, answers and graphics;
+3. reads official solutions from the Online-Testcenter;
+4. validates the complete dataset;
+5. updates `lastCheckedAt`;
+6. commits changed published files;
+7. deploys `data/published` to GitHub Pages.
 
-## Source matching policy
+A failed update does not replace the currently published dataset. Scraper diagnostics are uploaded as a workflow artifact for investigation.
 
-The PDF is authoritative for question wording, answer wording, and images.
-The Online-Testcenter is authoritative only for the correct answer key and BAMF internal answer ID.
-The builder joins records by stable dataset ID and deliberately does not compare answer wording, because the two official BAMF sources use slightly different editorial wording and gender forms.
+## Project structure
 
-## PDF transparency masks
+```text
+.
+├── .github/workflows/
+│   ├── pages.yml
+│   └── update-dataset.yml
+├── data/
+│   └── published/
+├── src/bamf_lid/
+├── tests/
+├── pyproject.toml
+└── README.md
+```
 
-The PDF parser recombines each embedded image with its PDF soft mask before
-writing it to disk. This preserves transparent backgrounds and prevents black
-rectangles around coats of arms, symbols, and other artwork.
+## Disclaimer
+
+This is an independent technical project and not an official BAMF publication.
+
+The dataset is generated from official publicly accessible BAMF sources. Applications using it should retain source attribution, check the manifest for updates and review the applicable terms before redistributing source material.
