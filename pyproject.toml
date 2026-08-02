@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bamf-lid-dataset"
+version = "1.0.1"
+description = "Build a validated Leben in Deutschland dataset from the official BAMF PDF and Online-Testcenter"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.27,<1",
+  "pymupdf>=1.24,<2",
+  "playwright>=1.45,<2",
+  "pydantic>=2.8,<3",
+  "Pillow>=10,<12",
+  "typer>=0.12,<1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9", "reportlab>=4,<5"]
+
+[project.scripts]
+bamf-lid = "bamf_lid.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bamf_lid"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

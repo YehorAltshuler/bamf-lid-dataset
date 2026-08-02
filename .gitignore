@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+data/source/*.pdf
+data/staging/
+data/published/
