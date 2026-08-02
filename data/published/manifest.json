@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "2026-08-02.180149",
+  "generatedAt": "2026-08-02T18:01:49.956051+00:00",
+  "questions": {
+    "url": "questions.json",
+    "sha256": "b01d0dd0c8d635eb226e500e49d12dc519ffe57d17f70b52f33714bc9d2ca1e3",
+    "count": 460,
+    "generalCount": 300,
+    "stateCount": 160
+  },
+  "imagesBaseUrl": "images/",
+  "imageCount": 100,
+  "questionsWithImages": 43,
+  "source": {
+    "pdfUrl": "https://www.bamf.de/SharedDocs/Anlagen/DE/Integration/Einbuergerung/gesamtfragenkatalog-lebenindeutschland.pdf?__blob=publicationFile",
+    "pdfSha256": "edd3ed5e56a35241b6cc61aa0630482dc9e64498db508a7d6892ccee2ec707a9",
+    "onlineTestcenterUrl": "https://oet.bamf.de/ords/oetut/f?p=534:1:0"
+  }
+}

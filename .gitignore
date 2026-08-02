@@ -2,6 +2,7 @@
 __pycache__/
 .pytest_cache/
 *.pyc
-data/source/*.pdf
+.DS_Store
+
+data/source/
 data/staging/
-data/published/
