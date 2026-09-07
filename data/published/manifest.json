@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "datasetVersion": "2026-08-24.041146",
-  "generatedAt": "2026-08-24T04:11:46.524785+00:00",
+  "datasetVersion": "2026-09-07.082535",
+  "generatedAt": "2026-09-07T08:25:35.080289+00:00",
   "questions": {
     "url": "questions.json",
-    "sha256": "0f8dc955eabab49ceb63364c2975d7ac72ded1a835b932eb8267732aca5f4751",
+    "sha256": "2e1469305b14d05d4817bea3bd20ef35039fb225869f566aa40be0cd277cdf40",
     "count": 460,
     "generalCount": 300,
     "stateCount": 160
@@ -17,5 +17,5 @@
     "pdfSha256": "edd3ed5e56a35241b6cc61aa0630482dc9e64498db508a7d6892ccee2ec707a9",
     "onlineTestcenterUrl": "https://oet.bamf.de/ords/oetut/f?p=534:1:0"
   },
-  "lastCheckedAt": "2026-08-24T04:11:46Z"
+  "lastCheckedAt": "2026-09-07T08:25:35Z"
 }
